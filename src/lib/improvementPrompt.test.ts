@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildImprovementPrompt } from "./improvementPrompt";
+import { buildImprovementPrompt, stripPlaceholders } from "./improvementPrompt";
 import type { Report } from "./schema";
 
 function makeReport(overrides: Partial<Report> = {}): Report {
@@ -33,7 +33,13 @@ function makeReport(overrides: Partial<Report> = {}): Report {
         weaknesses: [{ point: "No testing experience", evidence: "" }],
       },
       experienceAnalysis: [
-        { source: "Built features", method: "WEAK", issue: "Vague", rewrite: "Shipped 12 features…" },
+        {
+          source: "Built features",
+          method: "WEAK",
+          issue: "Vague",
+          // Carries a bracketed placeholder on purpose — must be stripped from output.
+          rewrite: "Shipped 12 features, improving onboarding by [X]%",
+        },
         { source: "Led team", method: "STAR", issue: "", rewrite: "" },
       ],
       bestPractices: [
@@ -66,15 +72,18 @@ describe("buildImprovementPrompt", () => {
   });
 
   it("forbids placeholders and enforces a single page with ATS formatting", () => {
-    // The prompt should instruct AGAINST placeholders (it may mention [ADD NUMBER]
-    // as a banned example), and demand one page + ATS-safe formatting.
-    expect(md).toMatch(/no placeholders, ever/i);
+    expect(md).toMatch(/zero placeholders/i);
     expect(md).toMatch(/one page/i);
     expect(md).toMatch(/single-column/i);
   });
 
-  it("warns the model not to copy bracketed rewrite placeholders verbatim", () => {
-    expect(md).toMatch(/do not copy the brackets/i);
+  it("contains NO square-bracket tokens anywhere (nothing for the model to echo)", () => {
+    expect(md).not.toMatch(/\[[^\]]+\]/);
+  });
+
+  it("strips bracketed placeholders out of the suggested rewrites", () => {
+    expect(md).toContain("Shipped 12 features, improving onboarding");
+    expect(md).not.toContain("[X]");
   });
 
   it("lists prioritized actions in priority order", () => {
@@ -90,7 +99,7 @@ describe("buildImprovementPrompt", () => {
   });
 
   it("includes weak-bullet rewrites but omits strengths", () => {
-    expect(md).toContain("Shipped 12 features…");
+    expect(md).toContain("Shipped 12 features");
     expect(md).not.toContain("Quantified impact"); // strengths are not part of an improvement prompt
   });
 
@@ -108,5 +117,17 @@ describe("buildImprovementPrompt", () => {
     const r = makeReport();
     r.analysis.keywordGap.missing = [];
     expect(buildImprovementPrompt(r)).not.toContain("Skills / keywords to address");
+  });
+});
+
+describe("stripPlaceholders", () => {
+  it("removes bracket tokens and the preposition that precedes them", () => {
+    expect(stripPlaceholders("improved load by [X]%")).toBe("improved load");
+    expect(stripPlaceholders("from [X]ms to [Y]ms")).toBe("");
+    expect(stripPlaceholders("resolved [ADD NUMBER]+ defects")).toBe("resolved + defects");
+  });
+
+  it("leaves clean text untouched", () => {
+    expect(stripPlaceholders("Reduced startup time by 78%")).toBe("Reduced startup time by 78%");
   });
 });
