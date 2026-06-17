@@ -15,6 +15,8 @@ The ATS keyword coverage is **reconciled** against the LLM's extracted required-
 
 **Two-call pipeline:** a detailed judgment pass → a synthesis pass that steps back for the headline verdict + top fixes. Both return validated JSON (`src/lib/schema.ts`), so the UI renders structured fields, never parsed prose.
 
+**Copy fixes for Claude:** a button on the report copies a self-contained Markdown prompt (all the actionable fixes, rewrites and missing skills) to your clipboard — paste it into Claude with your CV attached to apply the feedback and regenerate an updated **.docx**.
+
 **Realism is enforced structurally** — calibrated score anchors, an evidence requirement on every finding, and "tough but fair recruiter" framing — so the model can't grade-inflate.
 
 **Region-aware:** FR/EN, report mirrors the CV's language, Belgian/EU CV norms (a photo or date-of-birth is not penalised).

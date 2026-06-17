@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { scoreBand, type Critique, type Report } from "@/lib/schema";
+import { buildImprovementPrompt } from "@/lib/improvementPrompt";
 import { Card, SectionTitle, StatusBadge, Pill, bandColor } from "./ui";
 
 function ScoreCard({
@@ -83,6 +85,20 @@ const METHOD_TONE: Record<string, string> = {
 
 export function ReportView({ report, onReset }: { report: Report; onReset: () => void }) {
   const { ats, analysis, synthesis } = report;
+  const [copied, setCopied] = useState(false);
+
+  async function copyImprovementPrompt() {
+    const md = buildImprovementPrompt(report);
+    try {
+      await navigator.clipboard.writeText(md);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Clipboard API unavailable (e.g. non-secure context) — fall back to a prompt.
+      window.prompt("Copy the prompt below:", md);
+    }
+  }
+
   const skillsPresent = analysis.keywordGap.present.length;
   const skillsTotal = skillsPresent + analysis.keywordGap.missing.length;
   const matchReason =
@@ -95,19 +111,28 @@ export function ReportView({ report, onReset }: { report: Report; onReset: () =>
 
   return (
     <div className="print-container space-y-6">
-      <div className="no-print flex items-center justify-between gap-3">
+      <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <button
           onClick={onReset}
           className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-400"
         >
           ← New analysis
         </button>
-        <button
-          onClick={() => window.print()}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
-        >
-          Download PDF
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={copyImprovementPrompt}
+            className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-zinc-400"
+            title="Copy a Markdown prompt of all the fixes — paste it into Claude with your CV to regenerate an updated .docx"
+          >
+            {copied ? "✓ Copied for Claude" : "Copy fixes for Claude"}
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
+          >
+            Download PDF
+          </button>
+        </div>
       </div>
 
       {/* Verdict */}
