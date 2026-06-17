@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f7f8;
+  --foreground: #18181b;
+}
+
+html,
+body {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* PDF export: the user hits "Download PDF" which triggers the browser print
+   dialog. Hide interactive chrome and let the report flow cleanly onto pages. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  .print-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+}
