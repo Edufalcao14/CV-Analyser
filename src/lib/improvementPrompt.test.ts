@@ -54,6 +54,7 @@ function makeReport(overrides: Partial<Report> = {}): Report {
         { priority: 1, action: "Add Docker", why: "Required by the job." },
       ],
     },
+    jobOffer: "React Native developer needed with Redux Toolkit and Detox experience.",
   };
   return { ...base, ...overrides };
 }
@@ -72,9 +73,20 @@ describe("buildImprovementPrompt", () => {
   });
 
   it("forbids placeholders and enforces a single page with ATS formatting", () => {
-    expect(md).toMatch(/zero placeholders/i);
+    expect(md).toMatch(/no placeholders/i);
     expect(md).toMatch(/one page/i);
+    expect(md).toMatch(/less than 10 years/i);
     expect(md).toMatch(/single-column/i);
+  });
+
+  it("is directive — tells the model to make the concrete change itself", () => {
+    expect(md).toMatch(/make the concrete change yourself/i);
+    expect(md).toMatch(/do not merely suggest/i);
+  });
+
+  it("includes the target job offer for tailoring", () => {
+    expect(md).toContain("The job I'm targeting");
+    expect(md).toContain("Redux Toolkit and Detox");
   });
 
   it("contains NO square-bracket tokens anywhere (nothing for the model to echo)", () => {
@@ -129,5 +141,10 @@ describe("stripPlaceholders", () => {
 
   it("leaves clean text untouched", () => {
     expect(stripPlaceholders("Reduced startup time by 78%")).toBe("Reduced startup time by 78%");
+  });
+
+  it("preserves leading-period words like .NET and .js", () => {
+    expect(stripPlaceholders("BFF .NET integration")).toBe("BFF .NET integration");
+    expect(stripPlaceholders("Node .js backend")).toBe("Node .js backend");
   });
 });

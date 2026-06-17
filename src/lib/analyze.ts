@@ -111,5 +111,5 @@ export async function runAnalysis(input: AnalyzeInput): Promise<Report> {
     maxTokens: 1500,
   });
 
-  return { ats: reconciledAts, analysis, synthesis };
+  return { ats: reconciledAts, analysis, synthesis, jobOffer };
 }

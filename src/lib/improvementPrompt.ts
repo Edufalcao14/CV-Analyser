@@ -22,7 +22,10 @@ export function stripPlaceholders(s: string): string {
     .replace(/\[[^\]]*\][%a-z]*/gi, "")
     .replace(/\(\s*\)/g, "")
     .replace(/\s{2,}/g, " ")
-    .replace(/\s+([.,;:%])/g, "$1")
+    // tidy space before commas/semicolons/percent, and before a sentence-ending period
+    // (but NOT before ".NET", "·.js" etc. where the period starts a word)
+    .replace(/\s+([,;:%])/g, "$1")
+    .replace(/\s+\.(?=\s|$)/g, ".")
     .trim();
 }
 
@@ -31,41 +34,46 @@ export function buildImprovementPrompt(report: Report): string {
   const c = stripPlaceholders; // every dynamic string goes through this
   const lines: string[] = [];
 
-  // Senior CVs may run to two pages; everyone else must fit one.
-  const senior =
-    analysis.seniority.demonstrated === "senior" || analysis.seniority.target === "senior";
-  const lengthTarget = senior
-    ? "ONE page (two at the very most, only if essential)"
-    : "exactly ONE page";
+  const jobOffer = (report.jobOffer ?? "").trim();
 
-  lines.push("# Apply this CV feedback and regenerate my CV as a clean .docx");
+  lines.push("# Rewrite my CV into a final, ready-to-send .docx");
   lines.push("");
   lines.push(
-    "I'm attaching my current CV. Act as an expert technical recruiter and CV writer. " +
-      "Apply ALL of the feedback below, then deliver an updated, ATS-friendly **.docx** file " +
-      "(a Word document — NOT a PDF) that is final and ready to send as-is.",
+    "I'm attaching my current CV, and the job I'm targeting is included below. Act as an expert " +
+      "technical recruiter and CV writer.",
+  );
+  lines.push("");
+  lines.push(
+    "Your task: produce a final, ready-to-send **.docx** (Word document — NOT a PDF) that applies " +
+      "every fix below. For each point, MAKE THE CONCRETE CHANGE YOURSELF — write the finished " +
+      "wording using the real content of my CV and the target job. Decide and apply the change; " +
+      "do not merely suggest it, do not ask me questions, and do not leave anything for me to fill in.",
   );
   lines.push("");
   lines.push("Hard rules (follow every one):");
   lines.push(
-    "- **The CV must be final — zero placeholders.** Do NOT use square brackets, fill-in markers, TODO notes, or any 'add a number here' text of any kind. Every line must be finished prose.",
+    "- **Write finished, concrete prose.** No placeholders, no square brackets, no fill-in markers, no 'add a number here' notes. Every line must be complete and usable exactly as written.",
   );
   lines.push(
-    "- **Never invent or estimate** numbers, metrics, employers, dates, titles, or skills. Use only what is already in my CV.",
+    "- **Never invent** numbers, metrics, employers, dates, titles or skills. Use only what is true in my CV. If a bullet would be stronger with a number I haven't given, write a strong, specific version WITHOUT one (lead with scope, technology, action and outcome) — never leave a gap or marker.",
   );
   lines.push(
-    "- If a bullet would be stronger with a metric I haven't given you, write it strongly WITHOUT a number — lead with scope, technology, action and qualitative outcome. Do not leave a gap or marker for the number.",
+    "- **Tailor to the target job:** reflect its priorities and use its terminology wherever it genuinely applies to me.",
   );
   lines.push(
-    `- **Length: the CV MUST fit on ${lengthTarget}.** Be ruthless: trim the summary to 2–3 lines, group and shorten the skills list to the most job-relevant items, keep bullets to a single line where possible, and cut the least relevant content first (e.g. short or off-target roles).`,
+    "- **LENGTH — VERY IMPORTANT: if I have less than 10 years of experience, the CV MUST be ONE page. This is mandatory, not a preference.** Be ruthless to hit it: trim the summary to 2–3 lines, group and shorten the skills list to the most job-relevant items, keep bullets to a single line, and cut the least relevant content first (short or off-target roles). Only a profile with 10+ years of experience may use a second page.",
   );
   lines.push(
     "- **ATS formatting:** single-column layout; standard headings (Summary, Experience, Skills, Education); NO tables, columns, text boxes, images, icons or charts; no headers/footers; a standard font (Calibri, Arial or Georgia); black text; simple round bullets; dates as plain text.",
   );
-  lines.push(
-    "- Produce the CV in the same language as my current CV. Improve wording, structure, quantification and ATS-friendliness while preserving my real content.",
-  );
+  lines.push("- Produce the CV in the same language as my current CV.");
   lines.push("");
+
+  if (jobOffer) {
+    lines.push("## The job I'm targeting");
+    lines.push(jobOffer);
+    lines.push("");
+  }
 
   lines.push("## Overall verdict");
   lines.push(c(synthesis.verdict));
@@ -94,13 +102,13 @@ export function buildImprovementPrompt(report: Report): string {
     (i) => i.method === "WEAK" || i.rewrite.trim().length > 0,
   );
   if (rewrites.length > 0) {
-    lines.push("## Rewrite these experience bullets");
+    lines.push("## Rewrite these bullets (apply the change directly in the CV)");
     for (const item of rewrites) {
       lines.push(`- **Current:** ${c(item.source)}`);
       const issue = c(item.issue);
       const rewrite = c(item.rewrite);
-      if (issue) lines.push(`  - Issue: ${issue}`);
-      if (rewrite) lines.push(`  - Suggested direction: ${rewrite}`);
+      if (issue) lines.push(`  - Problem: ${issue}`);
+      if (rewrite) lines.push(`  - Rewrite it along these lines (finish it concretely): ${rewrite}`);
     }
     lines.push("");
   }
@@ -136,7 +144,7 @@ export function buildImprovementPrompt(report: Report): string {
 
   lines.push("## Output");
   lines.push(
-    `- Deliver my full updated CV as a downloadable **.docx** (Word) file — not a PDF — with everything above applied and fitting on ${lengthTarget}.`,
+    "- Deliver my full updated CV as a downloadable **.docx** (Word) file — not a PDF — with everything above applied, tailored to the target job, and on a single page (two only if I have 10+ years of experience).",
   );
   lines.push("- The document itself must be final and clean: no placeholders or brackets anywhere in it.");
   lines.push(

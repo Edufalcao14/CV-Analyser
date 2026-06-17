@@ -119,6 +119,8 @@ export type Report = {
   ats: AtsResult;
   analysis: Analysis;
   synthesis: Synthesis;
+  /** The job offer text, kept so the "Copy for Claude" prompt can tailor concretely. */
+  jobOffer: string;
 };
 
 export type ScoreBand = "Excellent" | "Good" | "Fair" | "Weak" | "Poor";
