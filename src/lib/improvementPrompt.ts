@@ -10,24 +10,39 @@ export function buildImprovementPrompt(report: Report): string {
   const { ats, analysis, synthesis } = report;
   const lines: string[] = [];
 
-  lines.push("# Apply this CV feedback and regenerate my CV as a .docx");
+  // Senior CVs may run to two pages; everyone else must fit one.
+  const senior =
+    analysis.seniority.demonstrated === "senior" || analysis.seniority.target === "senior";
+  const lengthTarget = senior
+    ? "ONE page (two at the very most, only if essential)"
+    : "exactly ONE page";
+
+  lines.push("# Apply this CV feedback and regenerate my CV as a clean .docx");
   lines.push("");
   lines.push(
     "I'm attaching my current CV. Act as an expert technical recruiter and CV writer. " +
-      "Apply ALL of the feedback below, then produce an updated, ATS-friendly **.docx** file " +
-      "(a Word document — NOT a PDF) with the changes applied.",
+      "Apply ALL of the feedback below, then deliver an updated, ATS-friendly **.docx** file " +
+      "(a Word document — NOT a PDF) that is ready to send as-is.",
   );
   lines.push("");
-  lines.push("Rules:");
+  lines.push("Hard rules (follow every one):");
   lines.push(
-    "- Keep everything truthful. Do NOT invent experience, employers, skills, or metrics I don't have.",
+    "- **No placeholders, ever.** Do NOT put `[ADD NUMBER]`, `[X]`, `[ADD ...]`, brackets, or TODO-style notes anywhere in the CV. The document must be clean and ready to send.",
   );
   lines.push(
-    "- Where a number/metric would strengthen a bullet but you don't know it, insert a clearly-marked placeholder like `[ADD NUMBER]` for me to fill in.",
+    "- **Never invent or estimate** numbers, metrics, employers, dates, titles, or skills. Use only what is already in my CV.",
   );
-  lines.push("- Produce the CV in the same language as my current CV.");
   lines.push(
-    "- Improve wording, structure, quantification and ATS-friendliness; preserve my real content.",
+    "- Some suggested rewrites below contain bracketed placeholders like `[X]%` or `[Y]ms`. Do NOT copy the brackets. If the real figure already appears in my CV, use it; otherwise rephrase the bullet to be strong WITHOUT that metric (lead with scope, technology, action and qualitative outcome).",
+  );
+  lines.push(
+    `- **Length: the CV MUST fit on ${lengthTarget}.** Be ruthless: trim the summary to 2–3 lines, group and shorten the skills list to the most job-relevant items, keep bullets to a single line where possible, and cut the least relevant content first (e.g. short/off-target roles).`,
+  );
+  lines.push(
+    "- **ATS formatting:** single-column layout; standard headings (Summary, Experience, Skills, Education); NO tables, columns, text boxes, images, icons or charts; no headers/footers; a standard font (Calibri, Arial or Georgia); black text; simple round bullets; dates as plain text.",
+  );
+  lines.push(
+    "- Produce the CV in the same language as my current CV. Improve wording, structure, quantification and ATS-friendliness while preserving my real content.",
   );
   lines.push("");
 
@@ -88,20 +103,20 @@ export function buildImprovementPrompt(report: Report): string {
     lines.push("");
   }
 
-  if (!ats.parseable || ats.notes.length > 0) {
-    lines.push("## ATS / formatting");
-    if (!ats.parseable) {
-      lines.push(
-        "- My current CV does not parse cleanly. Use a simple single-column, standard-heading layout with no tables, columns or text-in-images.",
-      );
-    }
+  if (ats.notes.length > 0) {
+    lines.push("## ATS issues found in my current CV");
     for (const n of ats.notes) lines.push(`- ${n}`);
     lines.push("");
   }
 
   lines.push("## Output");
-  lines.push("- Regenerate my full CV as a downloadable **.docx** file with all of the above applied.");
-  lines.push("- List any placeholders you inserted so I know what to fill in.");
+  lines.push(
+    `- Deliver my full updated CV as a downloadable **.docx** (Word) file — not a PDF — with everything above applied and fitting on ${lengthTarget}.`,
+  );
+  lines.push("- The document itself must be clean: no placeholders, brackets or notes inside it.");
+  lines.push(
+    "- AFTER the document, separately in your reply (NOT inside the CV), list up to 3 places where adding a real metric would most strengthen it — so I can supply those numbers myself.",
+  );
 
   return lines.join("\n");
 }

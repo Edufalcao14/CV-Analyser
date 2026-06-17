@@ -62,7 +62,19 @@ describe("buildImprovementPrompt", () => {
 
   it("includes the verdict and the truthfulness guardrail", () => {
     expect(md).toContain("Good fit but impact is buried.");
-    expect(md).toMatch(/do not invent/i);
+    expect(md).toMatch(/never invent/i);
+  });
+
+  it("forbids placeholders and enforces a single page with ATS formatting", () => {
+    // The prompt should instruct AGAINST placeholders (it may mention [ADD NUMBER]
+    // as a banned example), and demand one page + ATS-safe formatting.
+    expect(md).toMatch(/no placeholders, ever/i);
+    expect(md).toMatch(/one page/i);
+    expect(md).toMatch(/single-column/i);
+  });
+
+  it("warns the model not to copy bracketed rewrite placeholders verbatim", () => {
+    expect(md).toMatch(/do not copy the brackets/i);
   });
 
   it("lists prioritized actions in priority order", () => {
