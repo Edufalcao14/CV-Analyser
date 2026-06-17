@@ -9,7 +9,9 @@ A private, password-gated web tool that gives a **blunt, recruiter-grade analysi
 - **Mechanical ATS checks run in code** (`src/lib/ats.ts`) — keyword coverage, section detection, contact info, parseability. This is the deliberately "dumb" path that mirrors real applicant-tracking software, so a CV that parses badly genuinely scores badly.
 - **Judgment runs on an LLM** via [OpenRouter](https://openrouter.ai) (default `anthropic/claude-sonnet-4.6` — one-line swap to Opus for higher quality).
 
-**Dual-path read:** extracted text powers the ATS check and is the reliable backbone; the original PDF is _also_ sent to the vision-capable model for a richer "as a recruiter sees it" read (falls back to text on error; toggle with `ENABLE_VISION`).
+**Dual-path read:** extracted text is the backbone and powers the ATS check. The original PDF is sent to the vision model **only as a fallback** when text extraction is poor (a scanned or multi-column "designer" CV) — clean text PDFs stay text-only to keep token costs down (toggle the fallback with `ENABLE_VISION`).
+
+The ATS keyword coverage is **reconciled** against the LLM's extracted required-skills list, so the ATS score and the Skills-gap section always show consistent numbers.
 
 **Two-call pipeline:** a detailed judgment pass → a synthesis pass that steps back for the headline verdict + top fixes. Both return validated JSON (`src/lib/schema.ts`), so the UI renders structured fields, never parsed prose.
 

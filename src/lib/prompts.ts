@@ -80,7 +80,13 @@ export function buildAnalysisSystemPrompt(target: SeniorityLevel): string {
     { "rule": string, "status": "pass"|"fail"|"warn", "note": string }
   ]
 }
-Cover every rubric item in "bestPractices". Analyse the most important experience bullets in "experienceAnalysis" (give a concrete "rewrite" for any that are WEAK). Respond in the CV's language for all human-readable text.`,
+Output discipline:
+- "keywordGap": extract the concrete required HARD SKILLS, technologies, tools and qualifications from the JOB OFFER only. Do NOT include locations, company names, languages-of-the-posting, soft-skill clichés, or generic words (e.g. "Brazil", "team player", "experience").
+- "evidence": a SHORT quote — a phrase of at most ~15 words taken verbatim from the CV. Never paste a whole bullet or paragraph.
+- Limit "strengths" and "weaknesses" to the 4 most important each. Limit "experienceAnalysis" to the ~6 most important bullets (always give a concrete "rewrite" for any WEAK one).
+- Do NOT repeat the same point across multiple sections. Each section must add new information; if a point belongs in the recruiter critique, don't restate it in the tech critique.
+- Cover every rubric item in "bestPractices".
+- Respond in the CV's language for all human-readable text.`,
   ].join("\n");
 }
 
@@ -100,11 +106,8 @@ export function buildAnalysisUserPrompt(args: {
     "=== JOB OFFER ===",
     jobOffer.trim(),
     "",
-    "=== MECHANICAL ATS CHECK (computed in code — use as ground truth for parseability/keywords) ===",
+    "=== MECHANICAL ATS CHECK (computed in code — ground truth for parseability/sections) ===",
     `Parseable by ATS: ${ats.parseable}`,
-    `Keyword coverage: ${Math.round(ats.keywordCoverage * 100)}%`,
-    `Matched keywords: ${ats.matchedKeywords.join(", ") || "(none)"}`,
-    `Missing keywords: ${ats.missingKeywords.join(", ") || "(none)"}`,
     `Sections found: ${ats.sectionsFound.join(", ") || "(none)"}`,
     cvText.trim()
       ? ["", "=== CV (extracted text) ===", cvText.trim()].join("\n")
@@ -127,7 +130,7 @@ export function buildSynthesisSystemPrompt(): string {
     { "priority": number, "action": string, "why": string }
   ]
 }
-Order actions by real hiring impact, not by how easy they are. Respond in the same language as the analysis.`,
+Order actions by real hiring impact, not by how easy they are. Each action must be a DISTINCT fix — do not list the same issue twice or pad to reach five (fewer, sharper actions are better than repetition). The verdict is one sentence; do not turn it into a paragraph that re-lists the actions. Respond in the same language as the analysis.`,
   ].join("\n");
 }
 

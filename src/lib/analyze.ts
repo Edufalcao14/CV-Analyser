@@ -1,4 +1,4 @@
-import { computeAtsResult } from "./ats";
+import { computeAtsResult, reconcileAtsKeywords } from "./ats";
 import { detectLanguage } from "./language";
 import {
   buildAnalysisSystemPrompt,
@@ -17,9 +17,15 @@ export type AnalyzeInput = {
 };
 
 function visionEnabled(): boolean {
-  // Defaults ON; set ENABLE_VISION=false to use text extraction only.
+  // Master switch for the vision fallback. Defaults ON; set ENABLE_VISION=false to
+  // never attach the PDF (pure text). Even when ON, vision is only used as a fallback
+  // for poor text extraction (see below) — not on every PDF — to control cost.
   return (process.env.ENABLE_VISION ?? "true").toLowerCase() !== "false";
 }
+
+// Below this many characters of extracted text, we treat the text read as unreliable
+// and fall back to a vision read of the PDF.
+const WEAK_TEXT_THRESHOLD = 400;
 
 /**
  * Runs the full pipeline:
@@ -38,9 +44,11 @@ export async function runAnalysis(input: AnalyzeInput): Promise<Report> {
   // 3. Mechanical ATS check — pure code.
   const ats = computeAtsResult(cvText, jobOffer, lang);
 
-  // 4. Judgment pass. Send extracted text always; additionally attach the original
-  //    PDF for a vision read when enabled — falling back to text-only on any error.
-  const willAttach = visionEnabled() && detectKind(cv) === "pdf";
+  // 4. Judgment pass. Text is the default backbone. Attach the original PDF for a
+  //    (more expensive) vision read ONLY as a fallback when text extraction is weak —
+  //    e.g. a scanned or multi-column "designer" PDF that extracts as garbage.
+  const textIsWeak = !ats.parseable || cvText.trim().length < WEAK_TEXT_THRESHOLD;
+  const willAttach = visionEnabled() && detectKind(cv) === "pdf" && textIsWeak;
 
   // Guard: if we got no usable text AND won't attach the document, the model would
   // have no CV to analyse and would fabricate a report. Fail loudly instead.
@@ -84,16 +92,24 @@ export async function runAnalysis(input: AnalyzeInput): Promise<Report> {
   // The user's explicit target is authoritative over the model's echo.
   if (targetLevel !== "unknown") analysis.seniority.target = targetLevel;
 
+  // Reconcile the ATS keyword coverage with the LLM's required-skills list so the ATS
+  // card and the Skills-gap section show the same numbers (no more 32% vs 85%).
+  const reconciledAts = reconcileAtsKeywords(
+    ats,
+    analysis.keywordGap.present,
+    analysis.keywordGap.missing,
+  );
+
   // 5. Synthesis pass — step back over the full analysis for the headline + top fixes.
   const synthesis = await callJson({
     schema: SynthesisSchema,
     system: buildSynthesisSystemPrompt(),
     userContent: buildSynthesisUserPrompt({
       analysisJson: JSON.stringify(analysis),
-      ats,
+      ats: reconciledAts,
     }),
     maxTokens: 1500,
   });
 
-  return { ats, analysis, synthesis };
+  return { ats: reconciledAts, analysis, synthesis };
 }

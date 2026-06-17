@@ -109,6 +109,7 @@ export const AtsResult = z.object({
   sectionsMissing: z.array(z.string()),
   hasContactEmail: z.boolean(),
   hasContactPhone: z.boolean(),
+  hasSummary: z.boolean(),
   notes: z.array(z.string()),
 });
 export type AtsResult = z.infer<typeof AtsResult>;

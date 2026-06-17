@@ -123,6 +123,46 @@ export function isParseable(text: string): boolean {
   return words.length >= 5;
 }
 
+type ScoreParts = {
+  parseable: boolean;
+  coverage: number;
+  sectionScore: number;
+  contactScore: number;
+  summaryScore: number;
+};
+
+function atsScore(p: ScoreParts): number {
+  const raw =
+    0.5 * p.coverage + 0.25 * p.sectionScore + 0.15 * p.contactScore + 0.1 * p.summaryScore;
+  const score = Math.round(100 * raw);
+  // A CV that can't be parsed is ATS-hostile regardless of its keywords.
+  return p.parseable ? score : Math.min(score, 30);
+}
+
+function atsNotes(args: {
+  parseable: boolean;
+  coverage: number;
+  sectionsMissing: string[];
+  hasContactEmail: boolean;
+  hasContactPhone: boolean;
+}): string[] {
+  const notes: string[] = [];
+  if (!args.parseable) {
+    notes.push(
+      "The CV text could not be reliably parsed. An ATS may fail to read this layout — avoid columns, tables, text-in-images and unusual fonts.",
+    );
+  }
+  if (args.sectionsMissing.length > 0) {
+    notes.push(`Missing standard section(s): ${args.sectionsMissing.join(", ")}.`);
+  }
+  if (!args.hasContactEmail) notes.push("No email address detected.");
+  if (!args.hasContactPhone) notes.push("No phone number detected.");
+  if (args.coverage < 0.5) {
+    notes.push("Fewer than half of the job's required skills appear in the CV.");
+  }
+  return notes;
+}
+
 export function computeAtsResult(
   cvText: string,
   jobOffer: string,
@@ -136,30 +176,13 @@ export function computeAtsResult(
   const hasContactPhone = hasPhone(cvText);
   const hasSummary = /\b(summary|profile|profil|résumé|objective|objectif)\b/i.test(cvText);
 
-  const notes: string[] = [];
-
-  const sectionScore = found.length / CORE_SECTIONS.length;
-  const contactScore = (hasContactEmail ? 0.5 : 0) + (hasContactPhone ? 0.5 : 0);
-  const summaryScore = hasSummary ? 1 : 0;
-
-  const raw =
-    0.5 * coverage + 0.25 * sectionScore + 0.15 * contactScore + 0.1 * summaryScore;
-  let score = Math.round(100 * raw);
-
-  if (!parseable) {
-    notes.push(
-      "The CV text could not be reliably parsed. An ATS may fail to read this layout — avoid columns, tables, text-in-images and unusual fonts.",
-    );
-    score = Math.min(score, 30);
-  }
-  if (sectionsMissing.length > 0) {
-    notes.push(`Missing standard section(s): ${sectionsMissing.join(", ")}.`);
-  }
-  if (!hasContactEmail) notes.push("No email address detected.");
-  if (!hasContactPhone) notes.push("No phone number detected.");
-  if (coverage < 0.5) {
-    notes.push("Fewer than half of the job's key terms appear in the CV.");
-  }
+  const score = atsScore({
+    parseable,
+    coverage,
+    sectionScore: found.length / CORE_SECTIONS.length,
+    contactScore: (hasContactEmail ? 0.5 : 0) + (hasContactPhone ? 0.5 : 0),
+    summaryScore: hasSummary ? 1 : 0,
+  });
 
   return {
     score,
@@ -171,6 +194,43 @@ export function computeAtsResult(
     sectionsMissing,
     hasContactEmail,
     hasContactPhone,
-    notes,
+    hasSummary,
+    notes: atsNotes({ parseable, coverage, sectionsMissing, hasContactEmail, hasContactPhone }),
+  };
+}
+
+/**
+ * Recomputes the ATS keyword coverage + score from the LLM's authoritative
+ * required-skills lists, so the ATS card and the Skills-gap section can no longer
+ * contradict each other. The heuristic `extractKeywords` is only a pre-LLM hint;
+ * this is the number the user actually sees.
+ */
+export function reconcileAtsKeywords(
+  ats: AtsResult,
+  present: string[],
+  missing: string[],
+): AtsResult {
+  const total = present.length + missing.length;
+  const coverage = total > 0 ? present.length / total : 0;
+  const score = atsScore({
+    parseable: ats.parseable,
+    coverage,
+    sectionScore: ats.sectionsFound.length / CORE_SECTIONS.length,
+    contactScore: (ats.hasContactEmail ? 0.5 : 0) + (ats.hasContactPhone ? 0.5 : 0),
+    summaryScore: ats.hasSummary ? 1 : 0,
+  });
+  return {
+    ...ats,
+    score,
+    keywordCoverage: coverage,
+    matchedKeywords: present,
+    missingKeywords: missing,
+    notes: atsNotes({
+      parseable: ats.parseable,
+      coverage,
+      sectionsMissing: ats.sectionsMissing,
+      hasContactEmail: ats.hasContactEmail,
+      hasContactPhone: ats.hasContactPhone,
+    }),
   };
 }

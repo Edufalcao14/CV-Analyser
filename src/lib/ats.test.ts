@@ -7,6 +7,7 @@ import {
   hasPhone,
   isParseable,
   computeAtsResult,
+  reconcileAtsKeywords,
 } from "./ats";
 
 describe("extractKeywords", () => {
@@ -160,5 +161,42 @@ describe("computeAtsResult", () => {
     );
     expect(r.keywordCoverage).toBeLessThan(0.5);
     expect(r.missingKeywords).toEqual(expect.arrayContaining(["react"]));
+  });
+
+  it("exposes hasSummary for downstream reconciliation", () => {
+    const r = computeAtsResult(goodCv, job, "en");
+    expect(r.hasSummary).toBe(true);
+  });
+});
+
+describe("reconcileAtsKeywords", () => {
+  const base = computeAtsResult(
+    "PROFILE\nSenior engineer. jane@example.com +32 470 12 34 56\nEXPERIENCE\nx\nEDUCATION\ny\nSKILLS\nz",
+    "react typescript docker",
+    "en",
+  );
+
+  it("recomputes coverage and matched/missing from the provided skill lists", () => {
+    const r = reconcileAtsKeywords(base, ["react", "typescript", "docker"], ["kubernetes"]);
+    expect(r.matchedKeywords).toEqual(["react", "typescript", "docker"]);
+    expect(r.missingKeywords).toEqual(["kubernetes"]);
+    expect(r.keywordCoverage).toBeCloseTo(3 / 4, 5);
+  });
+
+  it("a higher coverage yields a higher (or equal) score than a lower one", () => {
+    const high = reconcileAtsKeywords(base, ["react", "typescript", "docker"], []);
+    const low = reconcileAtsKeywords(base, ["react"], ["typescript", "docker", "kubernetes"]);
+    expect(high.score).toBeGreaterThan(low.score);
+  });
+
+  it("handles empty skill lists as zero coverage without crashing", () => {
+    const r = reconcileAtsKeywords(base, [], []);
+    expect(r.keywordCoverage).toBe(0);
+  });
+
+  it("preserves the non-keyword fields (sections, contact)", () => {
+    const r = reconcileAtsKeywords(base, ["react"], []);
+    expect(r.sectionsFound).toEqual(base.sectionsFound);
+    expect(r.hasContactEmail).toBe(base.hasContactEmail);
   });
 });

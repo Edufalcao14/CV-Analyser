@@ -89,6 +89,9 @@ export function ReportView({ report, onReset }: { report: Report; onReset: () =>
     skillsTotal > 0
       ? `${skillsPresent} of ${skillsTotal} required skills present.`
       : analysis.seniority.gapNote;
+  const rewritesHavePlaceholders = analysis.experienceAnalysis.some((i) =>
+    /\[[^\]]*\]/.test(i.rewrite),
+  );
 
   return (
     <div className="print-container space-y-6">
@@ -211,6 +214,12 @@ export function ReportView({ report, onReset }: { report: Report; onReset: () =>
       {analysis.experienceAnalysis.length > 0 && (
         <Card>
           <SectionTitle>Experience writing (STAR / XYZ)</SectionTitle>
+          {rewritesHavePlaceholders && (
+            <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Rewrites use placeholders like <code>[X]%</code> or <code>[Y]ms</code> — fill
+              in your real numbers before using them.
+            </p>
+          )}
           <ul className="space-y-4">
             {analysis.experienceAnalysis.map((item, i) => (
               <li key={i} className="border-l-2 border-zinc-100 pl-4">
