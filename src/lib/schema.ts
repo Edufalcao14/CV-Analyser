@@ -68,7 +68,10 @@ export type SeniorityAssessment = z.infer<typeof SeniorityAssessment>;
 
 /** Output of LLM call 1 — the detailed judgment. */
 export const AnalysisSchema = z.object({
-  language: Language,
+  // The CV/job can be in any language (e.g. Portuguese for Brazilian roles), so this
+  // is a free string, not the en/fr enum. The model writes the report in this language;
+  // the internal `Language` enum is only used by the lightweight en/fr detector.
+  language: z.string(),
   matchScore: z.number().min(0).max(100),
   seniority: SeniorityAssessment,
   keywordGap: z.object({

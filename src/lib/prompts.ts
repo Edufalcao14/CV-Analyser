@@ -54,7 +54,7 @@ export function buildAnalysisSystemPrompt(target: SeniorityLevel): string {
     "",
     `Return ONLY a JSON object (no prose, no markdown fences) with exactly this shape:
 {
-  "language": "en" | "fr",                         // language of the CV
+  "language": string,                               // language code of the CV, e.g. "en", "fr", "pt"
   "matchScore": number,                             // 0-100, how well the CV fits THIS job
   "seniority": {
     "demonstrated": "junior"|"mid"|"senior"|"unknown",
