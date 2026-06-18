@@ -30,6 +30,10 @@ function getClient(): OpenAI {
     client = new OpenAI({
       apiKey,
       baseURL: BASE_URL,
+      // SDK auto-retries network errors / 429 / 5xx. (Empty-body parse failures are
+      // NOT auto-retried — callJson handles those explicitly below.)
+      maxRetries: 2,
+      timeout: 60_000,
       defaultHeaders: {
         "HTTP-Referer": "https://github.com/cv-analyser",
         "X-Title": "CV Analyser",
@@ -37,6 +41,10 @@ function getClient(): OpenAI {
     });
   }
   return client;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** A user-message content part. `file` is OpenRouter's PDF/document attachment shape. */
@@ -71,25 +79,37 @@ export async function callJson<T>(args: {
 }): Promise<T> {
   const { schema, system, userContent, model = getModel(), maxTokens = 4000 } = args;
 
-  const response = await getClient().chat.completions.create({
+  const params = {
     model,
     max_tokens: maxTokens,
-    response_format: { type: "json_object" },
+    response_format: { type: "json_object" as const },
     messages: [
-      { role: "system", content: system },
+      { role: "system" as const, content: system },
       // `file` content parts aren't in the stock OpenAI types; OpenRouter accepts them.
-      { role: "user", content: userContent as never },
+      { role: "user" as const, content: userContent as never },
     ],
-  });
+  };
 
-  const raw = response.choices[0]?.message?.content;
-  if (!raw) throw new Error("Empty response from model.");
-
-  let parsed: unknown;
-  try {
-    parsed = extractJson(raw);
-  } catch {
-    throw new Error("Model did not return valid JSON.");
+  // OpenRouter occasionally returns an empty/truncated body (a transient upstream
+  // timeout/overload) which the SDK surfaces as "Unexpected end of JSON input" — that
+  // class of failure is not auto-retried, so we retry it here. We also retry an empty
+  // message or a JSON/schema mismatch, since a re-roll usually succeeds.
+  const MAX_ATTEMPTS = 3;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await getClient().chat.completions.create(params);
+      const raw = response.choices?.[0]?.message?.content;
+      if (!raw || !raw.trim()) throw new Error("Model returned an empty response.");
+      return schema.parse(extractJson(raw));
+    } catch (err) {
+      lastError = err;
+      if (attempt < MAX_ATTEMPTS) await sleep(500 * attempt);
+    }
   }
-  return schema.parse(parsed);
+
+  const detail = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(
+    `The AI service did not return a valid analysis after ${MAX_ATTEMPTS} attempts. Please try again in a moment. (${detail})`,
+  );
 }
