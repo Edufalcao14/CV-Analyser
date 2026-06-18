@@ -58,7 +58,7 @@ export async function runAnalysis(input: AnalyzeInput): Promise<Report> {
     );
   }
 
-  const system = buildAnalysisSystemPrompt(targetLevel);
+  const system = buildAnalysisSystemPrompt(targetLevel, lang);
   const userText = buildAnalysisUserPrompt({ cvText, jobOffer, ats, attached: willAttach });
 
   const parts: ContentPart[] = [{ type: "text", text: userText }];

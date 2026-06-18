@@ -29,6 +29,15 @@ const STOPWORDS = new Set<string>([
   // French JD filler
   "recherchons", "recherche", "poste", "candidat", "idéal", "expérience", "années",
   "profil",
+  // Portuguese function words
+  "de", "da", "do", "dos", "das", "e", "ou", "com", "sem", "para", "por", "em",
+  "no", "na", "nos", "nas", "um", "uma", "uns", "umas", "que", "se", "ao", "aos",
+  "os", "as", "como", "mais", "menos", "muito", "você", "nós", "seu", "sua", "não",
+  "são", "ser", "está", "estão", "será", "este", "esta", "esse", "essa", "isso",
+  // Portuguese JD filler
+  "experiência", "experiências", "vaga", "candidato", "candidata", "buscamos",
+  "procuramos", "anos", "atuação", "atuar", "conhecimento", "conhecimentos",
+  "desejável", "requisitos", "atividades", "responsabilidades",
 ]);
 
 /**

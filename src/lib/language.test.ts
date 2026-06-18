@@ -14,6 +14,13 @@ describe("detectLanguage", () => {
     expect(detectLanguage(fr)).toBe("fr");
   });
 
+  it("detects Portuguese and distinguishes it from French", () => {
+    const pt =
+      "Desenvolvedor Mobile com mais de 3 anos de experiência em React Native e TypeScript, " +
+      "atuando em aplicações em produção para iOS e Android com foco em arquitetura escalável.";
+    expect(detectLanguage(pt)).toBe("pt");
+  });
+
   it("defaults to English on empty or ambiguous input", () => {
     expect(detectLanguage("")).toBe("en");
     expect(detectLanguage("React Node Docker 2024")).toBe("en");

@@ -1,5 +1,5 @@
-import { CV_BEST_PRACTICES, EU_REGION_NOTES } from "./rubric";
-import type { AtsResult, SeniorityLevel } from "./schema";
+import { CV_BEST_PRACTICES, getRegionNotes } from "./rubric";
+import type { AtsResult, Language, SeniorityLevel } from "./schema";
 
 /**
  * Prompts for the two-call pipeline. The realism guardrails here are reinforced
@@ -24,13 +24,14 @@ Hard rules:
 - Surface the most important weaknesses even on a strong CV. Every CV has them.
 - Honest is not the same as cruel: for every weakness, the analysis must make the fix obvious (the rewrite/action fields).`;
 
-function rubricBlock(): string {
+function rubricBlock(lang: Language): string {
+  const regionLabel = lang === "pt" ? "Brazil" : "Belgium / EU";
   return [
     "CV best-practices rubric (judge against ALL of these):",
     ...CV_BEST_PRACTICES.map((r, i) => `${i + 1}. ${r}`),
     "",
-    "Region (Belgium / EU) — respect these or you will give wrong advice:",
-    ...EU_REGION_NOTES.map((n) => `- ${n}`),
+    `Region (${regionLabel}) — respect these or you will give wrong advice:`,
+    ...getRegionNotes(lang).map((n) => `- ${n}`),
   ].join("\n");
 }
 
@@ -41,14 +42,14 @@ function targetLevelLine(target: SeniorityLevel): string {
   return `The candidate is explicitly targeting a ${target.toUpperCase()} role. Evaluate the CV AS A CANDIDATE FOR THAT LEVEL and frame every gap accordingly.`;
 }
 
-/** System prompt for LLM call 1 (judgment). */
-export function buildAnalysisSystemPrompt(target: SeniorityLevel): string {
+/** System prompt for LLM call 1 (judgment). `lang` selects the region-appropriate rubric notes. */
+export function buildAnalysisSystemPrompt(target: SeniorityLevel, lang: Language): string {
   return [
     REALISM_RULES,
     "",
     SCORE_ANCHORS,
     "",
-    rubricBlock(),
+    rubricBlock(lang),
     "",
     targetLevelLine(target),
     "",

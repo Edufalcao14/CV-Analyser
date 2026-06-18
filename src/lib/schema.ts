@@ -12,7 +12,7 @@ import { z } from "zod";
  * The UI renders the structured fields directly — it never parses prose.
  */
 
-export const Language = z.enum(["en", "fr"]);
+export const Language = z.enum(["en", "fr", "pt"]);
 export type Language = z.infer<typeof Language>;
 
 export const SeniorityLevel = z.enum(["junior", "mid", "senior", "unknown"]);
