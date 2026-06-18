@@ -31,8 +31,12 @@ const STOPWORDS = new Set<string>([
   "profil",
 ]);
 
-/** Section synonyms by language; we care about the three core sections. */
-const SECTION_PATTERNS: Record<Language, Record<string, RegExp>> = {
+/**
+ * Section synonyms per language. Detection checks ALL languages (not just the
+ * detected one), so a CV in any of these languages is parsed correctly — including
+ * Portuguese, which Brazilian roles use.
+ */
+const SECTION_PATTERNS: Record<string, Record<string, RegExp>> = {
   en: {
     experience: /\b(experience|employment|work history|professional experience)\b/i,
     education: /\b(education|academic|qualifications)\b/i,
@@ -42,6 +46,11 @@ const SECTION_PATTERNS: Record<Language, Record<string, RegExp>> = {
     experience: /(expérience|parcours professionnel|expériences)/i,
     education: /(formation|éducation|études|diplôme|diplômes)/i,
     skills: /(compétences|compétence)/i,
+  },
+  pt: {
+    experience: /(experiência profissional|experiências?|histórico profissional)/i,
+    education: /(formação acadêmica|formação|educação|escolaridade)/i,
+    skills: /(compet[êe]ncias?|habilidades|conhecimentos t[ée]cnicos)/i,
   },
 };
 
@@ -96,10 +105,9 @@ export function detectSections(
 ): { found: string[]; missing: string[] } {
   const found: string[] = [];
   const missing: string[] = [];
+  const patternSets = Object.values(SECTION_PATTERNS);
   for (const section of CORE_SECTIONS) {
-    const hit =
-      SECTION_PATTERNS.en[section].test(cvText) ||
-      SECTION_PATTERNS.fr[section].test(cvText);
+    const hit = patternSets.some((set) => set[section].test(cvText));
     if (hit) found.push(section);
     else missing.push(section);
   }
@@ -174,7 +182,8 @@ export function computeAtsResult(
   const { found, missing: sectionsMissing } = detectSections(cvText, lang);
   const hasContactEmail = hasEmail(cvText);
   const hasContactPhone = hasPhone(cvText);
-  const hasSummary = /\b(summary|profile|profil|résumé|objective|objectif)\b/i.test(cvText);
+  const hasSummary =
+    /\b(summary|profile|profil|résumé|resumo|objective|objectif|objetivo|perfil)\b/i.test(cvText);
 
   const score = atsScore({
     parseable,

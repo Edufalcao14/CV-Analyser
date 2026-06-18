@@ -96,6 +96,13 @@ describe("detectSections", () => {
     expect(missing).toEqual(expect.arrayContaining(["education", "skills"]));
   });
 
+  it("finds core Portuguese sections (Brazilian CVs)", () => {
+    const cv = "RESUMO\nEXPERIÊNCIA PROFISSIONAL\nFORMAÇÃO ACADÊMICA\nCOMPETÊNCIAS TÉCNICAS";
+    const { found, missing } = detectSections(cv, "en");
+    expect(found).toEqual(expect.arrayContaining(["experience", "education", "skills"]));
+    expect(missing).toHaveLength(0);
+  });
+
   it("detects sections regardless of the language argument (resilient to misdetection)", () => {
     const frCv = "PROFIL\nEXPÉRIENCE PROFESSIONNELLE\nFORMATION\nCOMPÉTENCES";
     // Deliberately pass the wrong language — a French CV mislabelled "en".
